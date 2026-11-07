@@ -41,7 +41,7 @@ Reel Inbox closes that gap with three small pieces:
 ├── reel.md       ← your note, link, creator, caption, timestamped transcript, on-screen text per frame
 ├── meta.json     ← the same, structured (status, errors, frame times, opened/done)
 ├── source.json   ← exactly what the phone sent
-└── frames/       ← 2–12 key frames, e.g. 03_0m07s.jpg
+└── frames/       ← up to 12 key frames, e.g. 03_0m07s.jpg
 ```
 
 In Claude Code:
@@ -81,21 +81,19 @@ Mac was asleep is worked through oldest first, one at a time, the next time it's
 
 ## Requirements
 
-- A Mac with Apple silicon and [Homebrew](https://brew.sh) (tested on an M3 Pro, macOS 26)
-- Xcode Command Line Tools, for `swiftc` (`xcode-select --install`)
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+- A Mac with Apple silicon. Tested on an M3 Pro with macOS 26. Intel Macs are untested.
+- [Homebrew](https://brew.sh), Xcode Command Line Tools (`xcode-select --install`), and
+  [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 - An iPhone with the Shortcuts app, signed in to **the same Apple ID** as the Mac, with iCloud Drive on
-- About 600 MB of disk for the speech model
+- About 600 MB of disk, almost all of it the speech model
 
-Everything else is free and open source: `yt-dlp`, `ffmpeg`, `whisper.cpp`, Python's standard library.
+The installer adds the rest with Homebrew, all free and open source: `yt-dlp`, `ffmpeg`, `whisper.cpp`,
+and Python if you don't have Homebrew's already.
 
 ## Setup
 
-**1. Install the tools**
-
-```bash
-brew install python yt-dlp ffmpeg whisper-cpp
-```
+**1. Have the basics.** Homebrew, the Xcode Command Line Tools, and Claude Code (see Requirements).
+If `brew`, `swiftc` and `claude` all run in Terminal, you're set.
 
 **2. Clone the repo** somewhere it can stay. The background job and Claude both point at this folder.
 If you move it later, run `./install.sh` again.
@@ -104,17 +102,20 @@ If you move it later, run `./install.sh` again.
 git clone https://github.com/silasapostol13-web/reel-inbox.git ~/reel-inbox
 ```
 
-**3. Run the installer.** It downloads the speech model (about 550 MB, once), compiles two small Swift
-helpers, starts the background job, registers the MCP server for every Claude Code session, and adds a
-small Claude skill if you don't already have one.
+**3. Run the installer.** It installs `yt-dlp`, `ffmpeg` and `whisper-cpp` with Homebrew if they're
+missing, downloads the speech model (about 575 MB, once), compiles two small Swift helpers, starts the
+background job, registers the MCP server for every Claude Code session, and adds a small Claude skill.
+It's safe to run again.
 
 ```bash
 cd ~/reel-inbox && ./install.sh
 ```
 
-**4. Put the Shortcut on your iPhone.** AirDrop `shortcut/Send to Claude.shortcut` to your phone (or
-drop it in iCloud Drive and tap it in the Files app), then tap **Add Shortcut**. The file is signed so
-anyone can import it. To build your own from source instead, run `python3 shortcut/build_shortcut.py`.
+**4. Put the Shortcut on your iPhone.** On the phone, open
+[this link](https://github.com/silasapostol13-web/reel-inbox/raw/main/shortcut/Send%20to%20Claude.shortcut)
+in Safari, then tap **Add Shortcut**. (Or AirDrop `shortcut/Send to Claude.shortcut` from the Mac.)
+The file is signed so anyone can import it. To build your own from source instead, run
+`python3 shortcut/build_shortcut.py`.
 
 **5. Pin it in the share sheet.** In Instagram, tap the paper plane, then **Share to…**, scroll to the
 bottom, tap **Edit Actions…**, and add **Send to Claude** to Favorites.
@@ -126,6 +127,12 @@ ls ~/ReelInbox
 ```
 
 Then open Claude Code anywhere and say *"get the reel I just sent"*.
+
+**Test it without the phone:**
+
+```bash
+python3 worker/reel_worker.py --url "https://www.instagram.com/reel/…" --note "test"
+```
 
 > **No share button handy?** Copy the Reel's link and run **Send to Claude** on its own (home screen,
 > Action Button, Back Tap). With nothing shared, it uses the link on your clipboard.
@@ -165,10 +172,10 @@ wouldn't hand over this video without a login…"). It's retried after 5, 10 and
 Mac is offline right after waking it waits instead of using up retries. After 4 tries it moves to
 `failed/` with the error inside.
 
-**iCloud placeholders are read through `NSFileCoordinator`.** Files saved on the iPhone show up on the
-Mac as *dataless* placeholders, and a plain read from a background process hangs or fails with
-`EDEADLK`. A tiny Swift helper (`vision/icloudread.swift`) asks iCloud for the file properly first.
-This was found the hard way, on the first real share.
+**Phone files are fetched from iCloud properly.** A file saved on the iPhone first shows up on the Mac
+as a placeholder with no data in it, and a background job that just opens it gets stuck. A tiny Swift
+helper (`vision/icloudread.swift`) asks iCloud to download it first. This was found the hard way, on
+the first real share.
 
 ## Privacy
 
@@ -204,8 +211,9 @@ This was found the hard way, on the first real share.
 | Run it by hand | `python3 worker/reel_worker.py --url "https://www.instagram.com/reel/…" --note "test"` |
 | Claude doesn't see the tools | `claude mcp list` should show `reel-inbox ✔ Connected`; re-run `./install.sh` |
 
-**Uninstall:** `launchctl bootout gui/$(id -u)/com.$(whoami).reelinbox`, delete
-`~/Library/LaunchAgents/com.$(whoami).reelinbox.plist`, and run `claude mcp remove --scope user reel-inbox`.
+**Uninstall:** `./uninstall.sh` stops the background job, removes the MCP server, and moves the model
+and helpers to the Trash. Your reels and the skill are kept unless you add `--all`. Add `--dry-run` to
+see what it would do first.
 
 ## Repo layout
 
@@ -217,7 +225,8 @@ This was found the hard way, on the first real share.
 | `vision/icloudread.swift` | Reads iCloud placeholders safely through `NSFileCoordinator` |
 | `mcp/reel_mcp.py` | The MCP server (stdio, no dependencies) |
 | `skill/reel-inbox/SKILL.md` | Teaches Claude what "the reel I sent" means |
-| `install.sh` | Safe to re-run: model, helpers, launchd job, MCP registration, skill |
+| `install.sh` | Safe to re-run: tools, model, helpers, launchd job, MCP registration, skill |
+| `uninstall.sh` | Undoes `install.sh`, moving files to the Trash (`--all` includes your reels) |
 
 ## Related projects
 

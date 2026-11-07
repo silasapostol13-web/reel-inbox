@@ -2,7 +2,7 @@
 # Reel Inbox installer. Safe to run again any time (after an update, or if you move the folder).
 #
 #   1. installs the free tools it needs with Homebrew (python, yt-dlp, ffmpeg, whisper-cpp)
-#   2. downloads the local speech model once (~550 MB)
+#   2. downloads the local speech model once (~575 MB)
 #   3. compiles two small Swift helpers (Apple Vision OCR, iCloud file reader)
 #   4. starts a background job (launchd) that watches the iCloud inbox
 #   5. registers the MCP server for every Claude Code session, and adds a small Claude skill
@@ -10,9 +10,16 @@
 # Undo everything with ./uninstall.sh
 set -euo pipefail
 
-say()  { print -P "%F{208}==>%f %B$1%b"; }
-note() { print -P "    $1"; }
-fail() { print -P "%F{red}✗%f $1"; exit 1; }
+# Colors only in a real terminal; plain text when piped or logged.
+if [[ -t 1 ]]; then
+  say()  { print -P "%F{208}==>%f %B$1%b"; }
+  note() { print -P "    $1"; }
+  fail() { print -P "%F{red}✗%f $1"; exit 1; }
+else
+  say()  { print -r -- "==> $1"; }
+  note() { local s="${1//\%F\{yellow\}/}"; print -r -- "    ${s//\%f/}"; }
+  fail() { print -r -- "x $1"; exit 1; }
+fi
 
 REPO="${0:A:h}"
 SUPPORT="$HOME/Library/Application Support/ReelInbox"
@@ -51,7 +58,7 @@ mkdir -p "$SUPPORT/models" "$HOME/ReelInbox"
 if [[ -s "$MODEL" ]]; then
   note "already downloaded"
 else
-  note "downloading whisper large-v3-turbo (q5, ~550 MB, one time)"
+  note "downloading whisper large-v3-turbo (q5, ~575 MB, one time)"
   curl -L --fail --progress-bar -o "$MODEL.part" "$MODEL_URL" && mv "$MODEL.part" "$MODEL"
 fi
 
@@ -114,5 +121,5 @@ else
 fi
 
 say "Done"
-note "Next: put shortcut/Send to Claude.shortcut on your iPhone (see README, step 3)."
+note "Next: put shortcut/Send to Claude.shortcut on your iPhone (see README, step 4)."
 note "Test without the phone:  $PY worker/reel_worker.py --url <reel link> --note \"test\""

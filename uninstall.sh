@@ -4,8 +4,8 @@
 # --all. The Claude skill is kept unless you pass --all (you may have edited it).
 set -uo pipefail
 
-say()  { print -P "%F{208}==>%f %B$1%b"; }
-note() { print -P "    $1"; }
+if [[ -t 1 ]]; then say() { print -P "%F{208}==>%f %B$1%b"; }; else say() { print -r -- "==> $1"; }; fi
+note() { print -r -- "    $1"; }
 
 REPO="${0:A:h}"
 SUPPORT="$HOME/Library/Application Support/ReelInbox"
@@ -23,12 +23,20 @@ bin_it() {
 }
 
 say "Background job"
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null && note "stopped $LABEL" || note "not running"
+if (( DRY )); then
+  launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && note "would stop $LABEL" || note "not running"
+else
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null && note "stopped $LABEL" || note "not running"
+fi
 bin_it "$PLIST"
 
 say "Claude Code"
 if command -v claude >/dev/null; then
-  claude mcp remove --scope user reel-inbox >/dev/null 2>&1 && note "removed MCP server 'reel-inbox'" || note "MCP server was not registered"
+  if (( DRY )); then
+    claude mcp get reel-inbox >/dev/null 2>&1 && note "would remove MCP server 'reel-inbox'" || note "MCP server is not registered"
+  else
+    claude mcp remove --scope user reel-inbox >/dev/null 2>&1 && note "removed MCP server 'reel-inbox'" || note "MCP server was not registered"
+  fi
 fi
 
 say "Model and helpers"
