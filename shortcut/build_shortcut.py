@@ -50,8 +50,8 @@ stamp = [{"Type": "WFDateFormatVariableAggrandizement", "WFDateFormatStyle": "Cu
 link = {"Type": "Variable", "VariableName": "link"}
 shared = attachment({"Type": "ExtensionInput"})
 
-# The note prompt comes FIRST and nothing can skip it: whatever Instagram hands over, Silas always
-# gets asked for his note, and a file is always saved. The Mac sorts out a missing link (it shows up
+# The note prompt comes FIRST and nothing can skip it: whatever Instagram hands over, the sender always
+# gets asked for a note, and a file is always saved. The Mac sorts out a missing link (it shows up
 # as a failed reel with the reason), and we record what kind of thing was shared so a bad share can
 # be diagnosed.
 actions = [

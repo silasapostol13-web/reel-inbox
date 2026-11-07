@@ -10,7 +10,8 @@ REPO="${0:A:h}"
 SUPPORT="$HOME/Library/Application Support/ReelInbox"
 INBOX="$HOME/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/ReelInbox"
 MODEL="$SUPPORT/models/ggml-large-v3-turbo-q5_0.bin"
-PLIST="$HOME/Library/LaunchAgents/com.silas.reelinbox.plist"
+LABEL="com.$(whoami).reelinbox"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 PY=/opt/homebrew/bin/python3
 
 for t in yt-dlp ffmpeg whisper-cli; do
@@ -30,7 +31,7 @@ cat > "$PLIST" <<EOF
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>com.silas.reelinbox</string>
+  <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key>
   <array><string>$PY</string><string>$REPO/worker/reel_worker.py</string></array>
   <key>WatchPaths</key><array><string>$INBOX</string></array>
@@ -44,12 +45,21 @@ cat > "$PLIST" <<EOF
 </dict>
 </plist>
 EOF
-launchctl bootout "gui/$(id -u)/com.silas.reelinbox" 2>/dev/null || true
+launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "launchd agent running: com.silas.reelinbox"
+echo "launchd agent running: $LABEL"
+
+# Teach Claude what "the reel I sent" means (kept as-is if you already have one).
+SKILL_DIR="$HOME/.claude/skills/reel-inbox"
+if [[ ! -f "$SKILL_DIR/SKILL.md" ]]; then
+  mkdir -p "$SKILL_DIR" && cp "$REPO/skill/reel-inbox/SKILL.md" "$SKILL_DIR/SKILL.md"
+  echo "installed Claude skill: $SKILL_DIR"
+fi
 
 if command -v claude >/dev/null; then
   claude mcp remove --scope user reel-inbox >/dev/null 2>&1 || true
   claude mcp add --scope user reel-inbox -- "$PY" "$REPO/mcp/reel_mcp.py"
+else
+  echo "Claude Code CLI not found: install it, then re-run ./install.sh to register the MCP server"
 fi
 echo "done"

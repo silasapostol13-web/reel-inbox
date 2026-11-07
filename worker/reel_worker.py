@@ -171,7 +171,7 @@ def explain_download_error(err: str) -> str:
     if "empty media response" in e or "login" in e or "cookies" in e or "private" in e:
         hint = ("Instagram/TikTok would not hand over this video without a login. Usually a private, "
                 "deleted or age-restricted post, or a temporary block. Open the link in a browser to check. "
-                "If it plays there while logged out, try again later; if it needs a login, ask Silas before "
+                "If it plays there while logged out, try again later; if it needs a login, ask the owner before "
                 "using browser cookies.")
     elif "unsupported url" in e:
         hint = "That link isn't a video yt-dlp knows how to download (photo post, profile or story link?)."
@@ -351,7 +351,7 @@ def fmt_t(sec: float) -> str:
 
 def write_reel_md(out: Path, meta: dict, segs: list[dict]) -> None:
     L = [f"# Reel: {meta.get('title') or meta['id']}", ""]
-    L += [f"- **Note from Silas:** {meta['note'] or '(no note)'}",
+    L += [f"- **Sender's note:** {meta['note'] or '(no note)'}",
           f"- **URL:** {meta['url']}",
           f"- **Sent:** {meta.get('sent_at') or '?'}  ·  **Processed:** {meta.get('processed_at')}",
           f"- **Creator:** {meta.get('uploader') or '?'}  ·  **Length:** {fmt_t(meta.get('duration') or 0)}",

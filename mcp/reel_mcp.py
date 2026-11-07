@@ -2,7 +2,7 @@
 """Reel Inbox MCP server (stdio, stdlib only).
 
 Tools:
-  list_reels  - newest first, with Silas's note and status
+  list_reels  - newest first, with the sender's note and status
   get_reel    - one reel (newest by default): note, transcript, on-screen text, and the frames as images
   mark_done   - hide a reel from the default list once it has been used
 
@@ -21,14 +21,17 @@ OUT_ROOT = Path(os.environ.get("REEL_INBOX_OUT", Path.home() / "ReelInbox"))
 INBOX = Path(os.environ.get(
     "REEL_INBOX_SRC",
     Path.home() / "Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/ReelInbox"))
-FILE_LINE = "After reading, file this reel in ~/.claude/skills/reel-learnings/ (see its SKILL.md)."
+# Optional: if you keep a learnings library as a Claude skill, every reel gets filed into it.
+LEARNINGS = Path.home() / ".claude/skills/reel-learnings"
+FILE_LINE = ("After reading, file this reel in ~/.claude/skills/reel-learnings/ (see its SKILL.md)."
+             if (LEARNINGS / "SKILL.md").exists() else "")
 SERVER = {"name": "reel-inbox", "version": "1.0.0"}
 
 TOOLS = [
     {
         "name": "list_reels",
-        "description": "List Instagram/TikTok reels Silas sent from his phone with 'Send to Claude', newest "
-                       "first, with his note about why he sent each one. Done reels are hidden unless "
+        "description": "List Instagram/TikTok reels the user sent from their phone with 'Send to Claude', newest "
+                       "first, with the note about why each one was sent. Done reels are hidden unless "
                        "include_done is true.",
         "inputSchema": {"type": "object", "properties": {
             "limit": {"type": "integer", "description": "How many to list (default 10)."},
@@ -36,9 +39,9 @@ TOOLS = [
     },
     {
         "name": "get_reel",
-        "description": "Get a reel Silas sent from his phone: his note (why he sent it / which project), the "
+        "description": "Get a reel the user sent from their phone: their note (why they sent it / which project), the "
                        "full transcript, on-screen text and code (OCR), and the key frames as images. With no "
-                       "id it returns the newest one. Use this when Silas says 'the reel I sent', 'the reel I "
+                       "id it returns the newest one. Use this when the user says 'the reel I sent', 'the reel I "
                        "just shared', 'check my reel inbox', etc.",
         "inputSchema": {"type": "object", "properties": {
             "id": {"type": "string", "description": "Reel id from list_reels, or any words from its note or "
@@ -112,7 +115,7 @@ def waiting_line() -> str:
     s = f"Note: {len(waiting)} reel(s) sent from the phone are still waiting to be processed on the Mac"
     if retrying:
         s += f" ({retrying} failed once and will be retried)"
-    return s + ". If Silas means one he just sent, it may need another minute; check again shortly."
+    return s + ". If the user means one they just sent, it may need another minute; check again shortly."
 
 
 def find(query: str | None) -> dict | None:
@@ -181,7 +184,7 @@ def get_reel(args: dict) -> list[dict]:
     header = f"Reel id: {m['id']}\nFolder: {d}\n"
     if w:
         header += w + "\n"
-    out = [{"type": "text", "text": header + "\n" + md + "\n\n" + FILE_LINE}]
+    out = [{"type": "text", "text": header + "\n" + md + ("\n\n" + FILE_LINE if FILE_LINE else "")}]
     if args.get("include_frames", True) is not False:
         frames = m.get("frames") or []
         cap = int(args.get("max_frames") or 12)
@@ -220,9 +223,9 @@ def mark_done(args: dict) -> list[dict]:
 
 
 def session_instructions() -> str:
-    base = ("Reels Silas shared from his phone with a note. 'The reel I sent' = get_reel with no id; "
-            "'go through my reels' = get_reel id 'next' repeatedly. Read his note first: it says why he "
-            "sent it. After reading a reel, file it in ~/.claude/skills/reel-learnings/ (see its SKILL.md).")
+    base = ("Reels the user shared from their phone with a note. 'The reel I sent' = get_reel with no id; "
+            "'go through my reels' = get_reel id 'next' repeatedly. Read their note first: it says why they "
+            "sent it. " + FILE_LINE)
     try:
         n = sum(1 for m in all_reels() if is_new(m))
         w = waiting_line()
@@ -230,8 +233,8 @@ def session_instructions() -> str:
         return base
     if n or w:
         base += (f" STATUS AT SESSION START: {n} new reel(s) not opened yet. {w} "
-                 "Mention this to Silas in one short line in your first reply, then carry on with what "
-                 "he asked. Don't open them unless he asks.")
+                 "Mention this to the user in one short line in your first reply, then carry on with what "
+                 "they asked. Don't open them unless they ask.")
     return base
 
 
