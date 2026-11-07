@@ -6,7 +6,7 @@ downloads the video (yt-dlp), transcribes it locally (whisper.cpp), picks the
 important frames (ffmpeg scene changes + Vision similarity), and reads on-screen
 text (Vision OCR). Output: ~/ReelInbox/<id>/reel.md, meta.json, frames/*.jpg.
 
-Stdlib only. Run by launchd (see launchd/). Safe to run by hand any time:
+Stdlib only. Run by launchd (install.sh sets it up). Safe to run by hand any time:
     python3 worker/reel_worker.py            # process everything pending
     python3 worker/reel_worker.py --url URL --note "why"   # process one URL directly
 """
@@ -171,8 +171,8 @@ def explain_download_error(err: str) -> str:
     if "empty media response" in e or "login" in e or "cookies" in e or "private" in e:
         hint = ("Instagram/TikTok would not hand over this video without a login. Usually a private, "
                 "deleted or age-restricted post, or a temporary block. Open the link in a browser to check. "
-                "If it plays there while logged out, try again later; if it needs a login, ask the owner before "
-                "using browser cookies.")
+                "If it plays there while logged out, try again later; Reel Inbox can't fetch posts that need "
+                "a login.")
     elif "unsupported url" in e:
         hint = "That link isn't a video yt-dlp knows how to download (photo post, profile or story link?)."
     elif "no video" in e or "no formats" in e:
