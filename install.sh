@@ -30,15 +30,17 @@ command -v brew >/dev/null || fail "Homebrew is needed. Install it from https://
 BREW_PREFIX="$(brew --prefix)"
 xcrun --find swiftc >/dev/null 2>&1 || fail "Xcode Command Line Tools are needed for swiftc. Run: xcode-select --install"
 
+# Python: any Homebrew python3 is fine (stdlib only). Don't install a new one on top of yours.
 missing=()
-for formula in python yt-dlp ffmpeg whisper-cpp; do
+[[ -x "$BREW_PREFIX/bin/python3" ]] || missing+=(python)
+for formula in yt-dlp ffmpeg whisper-cpp; do
   brew list --formula "$formula" >/dev/null 2>&1 || missing+=("$formula")
 done
 if (( ${#missing} )); then
   note "Installing with Homebrew: ${missing[*]}"
   brew install "${missing[@]}"
 else
-  note "python, yt-dlp, ffmpeg, whisper-cpp: already installed"
+  note "python3, yt-dlp, ffmpeg, whisper-cpp: already installed"
 fi
 PY="$BREW_PREFIX/bin/python3"
 [[ -x "$PY" ]] || fail "Couldn't find Homebrew's python3 at $PY"
