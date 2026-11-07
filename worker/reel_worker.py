@@ -35,6 +35,7 @@ SUPPORT = HOME / "Library/Application Support/ReelInbox"
 MODEL = Path(os.environ.get("REEL_INBOX_MODEL", SUPPORT / "models/ggml-large-v3-turbo-q5_0.bin"))
 REPO = Path(__file__).resolve().parent.parent
 REELVISION = REPO / "bin/reelvision"
+ICLOUDREAD = REPO / "bin/icloudread"
 LOG = SUPPORT / "worker.log"
 
 BREW = "/opt/homebrew/bin"
@@ -97,6 +98,15 @@ def parse_item(raw: str) -> dict:
     }
 
 
+def read_item(path: Path) -> str:
+    """Files from the phone land as iCloud placeholders; a plain read hangs or fails, so go through
+    NSFileCoordinator (bin/icloudread), which downloads it first."""
+    p = subprocess.run([str(ICLOUDREAD), str(path)], capture_output=True, timeout=120)
+    if p.returncode != 0:
+        raise RuntimeError(f"couldn't download from iCloud yet: {p.stderr.decode(errors='replace').strip()}")
+    return p.stdout.decode(errors="replace")
+
+
 def materialize_icloud_placeholders() -> None:
     """With 'Optimize Mac Storage' on, iCloud shows '.name.json.icloud' stubs. Ask for the real file."""
     for stub in INBOX.glob(".*.icloud"):
@@ -117,7 +127,7 @@ def sent_order(path: Path) -> str:
     """Oldest first by when it was sent on the phone (not file time: retries rewrite the file).
     Phone files are named reel-yyyyMMdd-HHmmss.json, so the name is the fallback."""
     try:
-        rec = json.loads(path.read_text())
+        rec = json.loads(read_item(path))
         if isinstance(rec, dict) and rec.get("sent_at"):
             return dt.datetime.fromisoformat(str(rec["sent_at"])).astimezone(dt.timezone.utc).isoformat()
     except Exception:
@@ -140,7 +150,7 @@ def online() -> bool:
 def backing_off(path: Path) -> bool:
     """A failed item waits 5 min after its 1st failure, 10 after its 2nd, before it's tried again."""
     try:
-        rec = json.loads(path.read_text())
+        rec = json.loads(read_item(path))
     except Exception:
         return False
     if not isinstance(rec, dict) or rec.get("status") != "failed":
@@ -419,7 +429,7 @@ def process_url(url: str, note: str, sent_at: str = "", source: dict | str | Non
 
 
 def handle_item(path: Path) -> None:
-    raw = path.read_text(errors="replace")
+    raw = read_item(path)
     item = parse_item(raw)
     if not item["url"]:
         err = "No link found in what the Shortcut sent."

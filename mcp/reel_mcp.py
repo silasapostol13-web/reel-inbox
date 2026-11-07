@@ -102,6 +102,8 @@ def waiting_line() -> str:
     retrying = 0
     for p in waiting:
         try:
+            if p.stat().st_flags & 0x40000000:  # still an iCloud placeholder: reading it could hang
+                continue
             if json.loads(p.read_text()).get("status") == "failed":
                 retrying += 1
         except Exception:

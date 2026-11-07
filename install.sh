@@ -23,6 +23,7 @@ mkdir -p "$SUPPORT/models" "$INBOX" "$HOME/ReelInbox"
 
 mkdir -p "$REPO/bin"
 swiftc -O "$REPO/vision/reelvision.swift" -o "$REPO/bin/reelvision"
+swiftc -O "$REPO/vision/icloudread.swift" -o "$REPO/bin/icloudread"
 
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
