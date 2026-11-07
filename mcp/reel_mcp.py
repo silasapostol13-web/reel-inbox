@@ -11,6 +11,7 @@ Reads ~/ReelInbox/<id>/{meta.json, reel.md, frames/*.jpg} written by worker/reel
 from __future__ import annotations
 
 import base64
+import datetime as dt
 import json
 import os
 import sys
@@ -40,7 +41,8 @@ TOOLS = [
                        "just shared', 'check my reel inbox', etc.",
         "inputSchema": {"type": "object", "properties": {
             "id": {"type": "string", "description": "Reel id from list_reels, or any words from its note or "
-                                                    "title. Omit for the newest reel."},
+                                                    "title, or 'next' for the oldest one not opened yet "
+                                                    "(for working through a stack). Omit for the newest reel."},
             "include_frames": {"type": "boolean", "description": "Return frame images (default true)."},
             "max_frames": {"type": "integer", "description": "Max frame images to return (default 12)."}}},
     },
@@ -68,8 +70,26 @@ def all_reels() -> list[dict]:
                 continue
             m["_dir"] = d
             reels.append(m)
-    reels.sort(key=lambda m: m.get("processed_at") or m["id"], reverse=True)
+    reels.sort(key=sent_key, reverse=True)
     return reels
+
+
+def sent_key(m: dict) -> str:
+    for k in ("sent_at", "processed_at"):
+        try:
+            return dt.datetime.fromisoformat(str(m[k])).astimezone(dt.timezone.utc).isoformat()
+        except Exception:
+            continue
+    return m["id"]
+
+
+def is_new(m: dict) -> bool:
+    return not m.get("opened_at") and not m.get("done")
+
+
+def new_count_line() -> str:
+    n = sum(1 for m in all_reels() if is_new(m))
+    return f"{n} new reel(s) not opened yet." if n else "No new reels."
 
 
 def waiting_line() -> str:
@@ -99,6 +119,9 @@ def find(query: str | None) -> dict | None:
     if not query:
         return reels[0]
     q = query.strip().lower()
+    if q in ("next", "next unread", "oldest unread"):
+        unread = [m for m in reels if is_new(m)]
+        return unread[-1] if unread else None
     for m in reels:
         if m["id"].lower() == q:
             return m
@@ -116,6 +139,8 @@ def find(query: str | None) -> dict | None:
 def summary(m: dict) -> str:
     status = m.get("status")
     s = f"- {m['id']}"
+    if is_new(m):
+        s += "  [NEW]"
     if m.get("done"):
         s += "  [done]"
     if status != "ok":
@@ -132,8 +157,8 @@ def list_reels(args: dict) -> list[dict]:
     limit = int(args.get("limit") or 10)
     reels = [m for m in all_reels() if args.get("include_done") or not m.get("done")]
     lines = [summary(m) for m in reels[:limit]]
-    head = f"{len(reels)} reel(s)" + ("" if args.get("include_done") else " not marked done")
-    text = head + ", newest first:\n" + ("\n".join(lines) if lines else "(none)")
+    head = new_count_line() + f" {len(reels)} reel(s)" + ("" if args.get("include_done") else " not marked done")
+    text = head + ", newest first. To work through a stack oldest-first, call get_reel with id 'next'.\n" + ("\n".join(lines) if lines else "(none)")
     w = waiting_line()
     return [{"type": "text", "text": text + ("\n\n" + w if w else "")}]
 
@@ -142,9 +167,13 @@ def get_reel(args: dict) -> list[dict]:
     m = find(args.get("id"))
     w = waiting_line()
     if not m:
-        msg = "No reel found" + (f" matching '{args.get('id')}'." if args.get("id") else " yet.")
+        if str(args.get("id") or "").strip().lower().startswith(("next", "oldest")):
+            msg = "No unread reels left."
+        else:
+            msg = "No reel found" + (f" matching '{args.get('id')}'." if args.get("id") else " yet.")
         return [{"type": "text", "text": msg + ("\n\n" + w if w else "")}]
     d: Path = m["_dir"]
+    mark_opened(d)
     md = (d / "reel.md").read_text() if (d / "reel.md").exists() else json.dumps(m, indent=2, default=str)
     header = f"Reel id: {m['id']}\nFolder: {d}\n"
     if w:
@@ -167,6 +196,15 @@ def get_reel(args: dict) -> list[dict]:
     return out
 
 
+def mark_opened(d: Path) -> None:
+    """A reel only stops counting as new once Claude has actually opened it."""
+    mp = d / "meta.json"
+    data = json.loads(mp.read_text())
+    if not data.get("opened_at"):
+        data["opened_at"] = dt.datetime.now().isoformat(timespec="seconds")
+        mp.write_text(json.dumps(data, indent=2))
+
+
 def mark_done(args: dict) -> list[dict]:
     m = find(args.get("id"))
     if not m:
@@ -176,6 +214,22 @@ def mark_done(args: dict) -> list[dict]:
     data["done"] = True
     mp.write_text(json.dumps(data, indent=2))
     return [{"type": "text", "text": f"Marked done: {m['id']}"}]
+
+
+def session_instructions() -> str:
+    base = ("Reels Silas shared from his phone with a note. 'The reel I sent' = get_reel with no id; "
+            "'go through my reels' = get_reel id 'next' repeatedly. Read his note first: it says why he "
+            "sent it.")
+    try:
+        n = sum(1 for m in all_reels() if is_new(m))
+        w = waiting_line()
+    except Exception:
+        return base
+    if n or w:
+        base += (f" STATUS AT SESSION START: {n} new reel(s) not opened yet. {w} "
+                 "Mention this to Silas in one short line in your first reply, then carry on with what "
+                 "he asked. Don't open them unless he asks.")
+    return base
 
 
 HANDLERS = {"list_reels": list_reels, "get_reel": get_reel, "mark_done": mark_done}
@@ -201,8 +255,7 @@ def handle(req: dict) -> None:
     if method == "initialize":
         reply(msg_id, {"protocolVersion": params.get("protocolVersion", "2025-06-18"),
                        "capabilities": {"tools": {}}, "serverInfo": SERVER,
-                       "instructions": "Reels Silas shared from his phone. 'The reel I sent' = get_reel "
-                                       "with no id. Read his note first: it says why he sent it."})
+                       "instructions": session_instructions()})
     elif method == "ping":
         reply(msg_id, {})
     elif method == "tools/list":

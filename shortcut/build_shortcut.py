@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds the 'Send to Claude' iOS Shortcut and signs it so it can be opened on the iPhone.
 
-Flow on the phone: Share sheet -> Send to Claude -> type or dictate a note -> saved as
+Flow on the phone: Share sheet (or copied link, when run on its own) -> Send to Claude -> type or dictate a note -> saved as
 iCloud Drive/Shortcuts/ReelInbox/reel-<time>.json -> 'Sent to Claude' notification.
 
     python3 shortcut/build_shortcut.py   # writes shortcut/Send to Claude.shortcut (signed)
@@ -44,6 +44,7 @@ def action(ident, params):
 
 
 u_urls, u_note, u_date, u_dict = (str(uuid.uuid4()).upper() for _ in range(4))
+u_if = str(uuid.uuid4()).upper()
 iso = [{"Type": "WFDateFormatVariableAggrandizement", "WFDateFormatStyle": "ISO 8601", "WFISO8601IncludeTime": True}]
 stamp = [{"Type": "WFDateFormatVariableAggrandizement", "WFDateFormatStyle": "Custom",
           "WFDateFormat": "yyyyMMdd-HHmmss"}]
@@ -53,6 +54,18 @@ actions = [
         "UUID": u_urls,
         "WFInput": attachment({"Type": "ExtensionInput"}),
     }),
+    # No link (e.g. run from the Action Button with something else copied): say so on the phone and stop.
+    action("is.workflow.actions.conditional", {
+        "GroupingIdentifier": u_if, "WFControlFlowMode": 0, "WFCondition": 101,
+        "WFInput": {"Type": "Variable", "Variable": attachment(out(u_urls, "URLs"))},
+    }),
+    action("is.workflow.actions.alert", {
+        "WFAlertActionTitle": "No link found",
+        "WFAlertActionMessage": "Share a Reel to Send to Claude, or copy the Reel's link first and run it again.",
+        "WFAlertActionCancelButtonShown": False,
+    }),
+    action("is.workflow.actions.exit", {}),
+    action("is.workflow.actions.conditional", {"GroupingIdentifier": u_if, "WFControlFlowMode": 2}),
     action("is.workflow.actions.ask", {
         "UUID": u_note,
         "WFAskActionPrompt": "Why are you sending this, and for which project?",
@@ -94,7 +107,8 @@ shortcut = {
     "WFWorkflowOutputContentItemClasses": [],
     "WFWorkflowHasOutputFallback": False,
     "WFWorkflowHasShortcutInputVariables": True,
-    "WFWorkflowNoInputBehavior": {"Name": "WFWorkflowNoInputBehaviorAskForInput", "Parameters": {"ItemClass": "WFURLContentItem"}},
+    # Run without sharing (Action Button, Back Tap, home-screen icon): use the copied link instead.
+    "WFWorkflowNoInputBehavior": {"Name": "WFWorkflowNoInputBehaviorGetClipboard", "Parameters": {}},
     "WFQuickActionSurfaces": [],
 }
 

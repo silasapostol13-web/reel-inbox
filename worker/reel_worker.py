@@ -44,7 +44,7 @@ FFPROBE = shutil.which("ffprobe") or f"{BREW}/ffprobe"
 WHISPER = shutil.which("whisper-cli") or f"{BREW}/whisper-cli"
 
 MAX_FRAMES = 12
-MAX_ATTEMPTS = 3
+MAX_ATTEMPTS = 4
 URL_RE = re.compile(r"https?://[^\s\"'<>]+")
 
 
@@ -108,7 +108,31 @@ def pending_items() -> list[Path]:
     materialize_icloud_placeholders()
     # Any visible file at the top level counts (the phone writes .json; be forgiving about the rest).
     items = [p for p in INBOX.iterdir() if p.is_file() and not p.name.startswith(".")]
-    return sorted(items, key=lambda p: p.stat().st_mtime)
+    return sorted(items, key=sent_order)
+
+
+def sent_order(path: Path) -> str:
+    """Oldest first by when it was sent on the phone (not file time: retries rewrite the file).
+    Phone files are named reel-yyyyMMdd-HHmmss.json, so the name is the fallback."""
+    try:
+        rec = json.loads(path.read_text())
+        if isinstance(rec, dict) and rec.get("sent_at"):
+            return dt.datetime.fromisoformat(str(rec["sent_at"])).astimezone(dt.timezone.utc).isoformat()
+    except Exception:
+        pass
+    return dt.datetime.fromtimestamp(path.stat().st_mtime, dt.timezone.utc).isoformat()
+
+
+def online() -> bool:
+    """Right after the Mac wakes, Wi-Fi can lag. Don't burn retries on that: just wait for the next sweep."""
+    import socket
+    for host in ("www.instagram.com", "www.tiktok.com", "www.apple.com"):
+        try:
+            socket.create_connection((host, 443), timeout=5).close()
+            return True
+        except OSError:
+            continue
+    return False
 
 
 def backing_off(path: Path) -> bool:
@@ -467,6 +491,9 @@ def main() -> int:
     except BlockingIOError:
         return 0  # another run is already working through the inbox
     INBOX.mkdir(parents=True, exist_ok=True)
+    if pending_items() and not online():
+        log("offline; leaving the inbox for the next sweep")
+        return 0
     tried: set[Path] = set()
     while True:
         items = [p for p in pending_items() if p not in tried and not backing_off(p)]
