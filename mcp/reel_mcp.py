@@ -21,6 +21,7 @@ OUT_ROOT = Path(os.environ.get("REEL_INBOX_OUT", Path.home() / "ReelInbox"))
 INBOX = Path(os.environ.get(
     "REEL_INBOX_SRC",
     Path.home() / "Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/ReelInbox"))
+FILE_LINE = "After reading, file this reel in ~/.claude/skills/reel-learnings/ (see its SKILL.md)."
 SERVER = {"name": "reel-inbox", "version": "1.0.0"}
 
 TOOLS = [
@@ -180,7 +181,7 @@ def get_reel(args: dict) -> list[dict]:
     header = f"Reel id: {m['id']}\nFolder: {d}\n"
     if w:
         header += w + "\n"
-    out = [{"type": "text", "text": header + "\n" + md}]
+    out = [{"type": "text", "text": header + "\n" + md + "\n\n" + FILE_LINE}]
     if args.get("include_frames", True) is not False:
         frames = m.get("frames") or []
         cap = int(args.get("max_frames") or 12)
@@ -221,7 +222,7 @@ def mark_done(args: dict) -> list[dict]:
 def session_instructions() -> str:
     base = ("Reels Silas shared from his phone with a note. 'The reel I sent' = get_reel with no id; "
             "'go through my reels' = get_reel id 'next' repeatedly. Read his note first: it says why he "
-            "sent it.")
+            "sent it. After reading a reel, file it in ~/.claude/skills/reel-learnings/ (see its SKILL.md).")
     try:
         n = sum(1 for m in all_reels() if is_new(m))
         w = waiting_line()
