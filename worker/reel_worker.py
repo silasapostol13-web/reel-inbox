@@ -79,7 +79,9 @@ def parse_item(raw: str) -> dict:
     if isinstance(url, list):
         url = url[0] if url else None
     if not url or not URL_RE.search(str(url)):
-        m = URL_RE.search(raw)
+        # No link in the url field: look in everything else that was shared (e.g. shared_text).
+        hay = " ".join(str(v) for v in data.values()) if data else raw
+        m = URL_RE.search(hay)
         url = m.group(0) if m else None
     else:
         url = URL_RE.search(str(url)).group(0)

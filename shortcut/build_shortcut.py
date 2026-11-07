@@ -43,43 +43,48 @@ def action(ident, params):
     return {"WFWorkflowActionIdentifier": ident, "WFWorkflowActionParameters": params}
 
 
-u_urls, u_note, u_date, u_dict = (str(uuid.uuid4()).upper() for _ in range(4))
-u_if = str(uuid.uuid4()).upper()
+u_note, u_urls, u_type, u_text, u_clip, u_curls, u_date, u_dict, u_if = (str(uuid.uuid4()).upper() for _ in range(9))
 iso = [{"Type": "WFDateFormatVariableAggrandizement", "WFDateFormatStyle": "ISO 8601", "WFISO8601IncludeTime": True}]
 stamp = [{"Type": "WFDateFormatVariableAggrandizement", "WFDateFormatStyle": "Custom",
           "WFDateFormat": "yyyyMMdd-HHmmss"}]
+link = {"Type": "Variable", "VariableName": "link"}
+shared = attachment({"Type": "ExtensionInput"})
 
+# The note prompt comes FIRST and nothing can skip it: whatever Instagram hands over, Silas always
+# gets asked for his note, and a file is always saved. The Mac sorts out a missing link (it shows up
+# as a failed reel with the reason), and we record what kind of thing was shared so a bad share can
+# be diagnosed.
 actions = [
-    action("is.workflow.actions.detect.link", {
-        "UUID": u_urls,
-        "WFInput": attachment({"Type": "ExtensionInput"}),
-    }),
-    # No link (e.g. run from the Action Button with something else copied): say so on the phone and stop.
-    action("is.workflow.actions.conditional", {
-        "GroupingIdentifier": u_if, "WFControlFlowMode": 0, "WFCondition": 101,
-        "WFInput": {"Type": "Variable", "Variable": attachment(out(u_urls, "URLs"))},
-    }),
-    action("is.workflow.actions.alert", {
-        "WFAlertActionTitle": "No link found",
-        "WFAlertActionMessage": "Share a Reel to Send to Claude, or copy the Reel's link first and run it again.",
-        "WFAlertActionCancelButtonShown": False,
-    }),
-    action("is.workflow.actions.exit", {}),
-    action("is.workflow.actions.conditional", {"GroupingIdentifier": u_if, "WFControlFlowMode": 2}),
     action("is.workflow.actions.ask", {
         "UUID": u_note,
         "WFAskActionPrompt": "Why are you sending this, and for which project?",
         "WFInputType": "Text",
         "WFAllowsMultilineText": True,
     }),
+    action("is.workflow.actions.detect.link", {"UUID": u_urls, "WFInput": shared}),
+    action("is.workflow.actions.getitemtype", {"UUID": u_type, "WFInput": shared}),
+    action("is.workflow.actions.detect.text", {"UUID": u_text, "WFInput": shared}),
+    # Link from what was shared; if there is none, fall back to a link on the clipboard.
+    action("is.workflow.actions.conditional", {
+        "GroupingIdentifier": u_if, "WFControlFlowMode": 0, "WFCondition": 100,
+        "WFInput": {"Type": "Variable", "Variable": attachment(out(u_urls, "URLs"))},
+    }),
+    action("is.workflow.actions.setvariable", {"WFVariableName": "link", "WFInput": attachment(out(u_urls, "URLs"))}),
+    action("is.workflow.actions.conditional", {"GroupingIdentifier": u_if, "WFControlFlowMode": 1}),
+    action("is.workflow.actions.getclipboard", {"UUID": u_clip}),
+    action("is.workflow.actions.detect.link", {"UUID": u_curls, "WFInput": attachment(out(u_clip, "Clipboard"))}),
+    action("is.workflow.actions.setvariable", {"WFVariableName": "link", "WFInput": attachment(out(u_curls, "URLs"))}),
+    action("is.workflow.actions.conditional", {"GroupingIdentifier": u_if, "WFControlFlowMode": 2}),
     action("is.workflow.actions.date", {"UUID": u_date, "WFDateActionMode": "Current Date"}),
     action("is.workflow.actions.dictionary", {
         "UUID": u_dict,
         "WFItems": {"Value": {"WFDictionaryFieldValueItems": [
-            {"WFItemType": 0, "WFKey": text("url"), "WFValue": text(out(u_urls, "URLs"))},
+            {"WFItemType": 0, "WFKey": text("url"), "WFValue": text(link)},
             {"WFItemType": 0, "WFKey": text("note"), "WFValue": text(out(u_note, "Provided Input"))},
             {"WFItemType": 0, "WFKey": text("sent_at"), "WFValue": text(out(u_date, "Date", iso))},
-            {"WFItemType": 0, "WFKey": text("source"), "WFValue": text("Send to Claude shortcut v1")},
+            {"WFItemType": 0, "WFKey": text("shared_type"), "WFValue": text(out(u_type, "Type"))},
+            {"WFItemType": 0, "WFKey": text("shared_text"), "WFValue": text(out(u_text, "Text"))},
+            {"WFItemType": 0, "WFKey": text("source"), "WFValue": text("Send to Claude shortcut v2")},
         ]}, "WFSerializationType": "WFDictionaryFieldValue"},
     }),
     action("is.workflow.actions.documentpicker.save", {
@@ -90,7 +95,7 @@ actions = [
     }),
     action("is.workflow.actions.notification", {
         "WFNotificationActionTitle": "Sent to Claude",
-        "WFNotificationActionBody": text("Your Mac will process it in a minute or two."),
+        "WFNotificationActionBody": text("Your Mac will pick it up next time it's on."),
         "WFNotificationActionSound": False,
     }),
 ]
@@ -103,7 +108,10 @@ shortcut = {
     "WFWorkflowIcon": {"WFWorkflowIconStartColor": 4282601983, "WFWorkflowIconGlyphNumber": 59511},
     "WFWorkflowImportQuestions": [],
     "WFWorkflowTypes": ["ActionExtension"],
-    "WFWorkflowInputContentItemClasses": ["WFURLContentItem", "WFStringContentItem"],
+    "WFWorkflowInputContentItemClasses": [
+        "WFURLContentItem", "WFStringContentItem", "WFSafariWebPageContentItem", "WFRichTextContentItem",
+        "WFArticleContentItem", "WFImageContentItem", "WFAVAssetContentItem", "WFGenericFileContentItem",
+    ],
     "WFWorkflowOutputContentItemClasses": [],
     "WFWorkflowHasOutputFallback": False,
     "WFWorkflowHasShortcutInputVariables": True,
