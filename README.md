@@ -19,8 +19,9 @@
 
 ---
 
-**Quick start** (Mac with Apple silicon, [Homebrew](https://brew.sh) and
-[Claude Code](https://code.claude.com/docs/en/setup) already installed; free, about 10 minutes):
+**Quick start** (Mac with Apple silicon, with [Homebrew](https://brew.sh), the Xcode Command Line Tools
+(`xcode-select --install`) and [Claude Code](https://code.claude.com/docs/en/setup) already installed;
+free, about 10 minutes):
 
 ```bash
 git clone https://github.com/silasapostol13-web/reel-inbox.git ~/reel-inbox
@@ -106,7 +107,11 @@ and Python if you don't have Homebrew's already.
 ## Setup
 
 **1. Have the basics.** Homebrew, the Xcode Command Line Tools, and Claude Code (see Requirements).
-If `brew`, `swiftc` and `claude` all run in Terminal, you're set.
+To check, paste this into Terminal. If it prints three version numbers, you're set:
+
+```bash
+brew --version && swiftc --version && claude --version
+```
 
 **2. Clone the repo** somewhere it can stay. The background job and Claude both point at this folder.
 If you move it later, run `./install.sh` again.
@@ -153,7 +158,8 @@ the Mac:
 ls ~/ReelInbox
 ```
 
-Then open Claude Code anywhere and say *"get the reel I just sent"*.
+To check that Claude Code can see it, run `claude mcp list`: the `reel-inbox` line should end in
+**✔ Connected**. Then open Claude Code anywhere and say *"get the reel I just sent"*.
 
 **Test it without the phone:**
 
@@ -162,7 +168,9 @@ cd ~/reel-inbox
 python3 worker/reel_worker.py --url "https://www.instagram.com/reel/Chunk8-jurw/" --note "test"
 ```
 
-That link is a 5-second public Reel from Instagram's own account; any public Reel or TikTok link works.
+That link is a 5-second public Reel from Instagram's own account (a cat, no speech, so the transcript
+is empty); any public Reel or TikTok link works. The installer's last line prints the same command
+with full paths, and either one is fine.
 It makes a new folder in `~/ReelInbox` within a few seconds.
 
 > **No share button handy?** Copy the Reel's link and run **Send to Claude** on its own (home screen,
@@ -223,15 +231,16 @@ Claude looks at up to 12 frame images.
   small note file, and the one-time model download from Hugging Face.
 - Your notes live in your own iCloud Drive (**iCloud Drive › Shortcuts › ReelInbox** in Finder; processed
   ones move to its `done/` folder) and in `~/ReelInbox/`.
-- Claude Code sees a reel's contents only when you (or a session) call the tool. New sessions are told
-  how many unread reels are waiting, and that's all.
+- Claude Code sees a reel's contents only when you (or a session) call the tool. Because the server is
+  registered for every project, each new session is told how many unread reels are waiting, and
+  that's all.
 - Reel folders are kept until you delete them. Each one holds the frames from someone else's video, so
   treat them as notes for yourself.
 
 **What it puts on your Mac:** the Homebrew tools (`yt-dlp`, `ffmpeg`, `whisper.cpp`, and Python if you
 didn't have it), the speech model in `~/Library/Application Support/ReelInbox/` (about 560 MB, plus the
 worker log), a background job in `~/Library/LaunchAgents/`, two small helpers in the repo's `bin/`
-folder, the MCP server entry in Claude Code's settings, and a skill in `~/.claude/skills/reel-inbox/`.
+folder, the MCP server entry in `~/.claude.json` (Claude Code's own settings file), and a skill in `~/.claude/skills/reel-inbox/`.
 
 ## Limits and honest caveats
 
@@ -261,9 +270,9 @@ folder, the MCP server entry in Claude Code's settings, and a skill in `~/.claud
 | A reel failed | `~/ReelInbox/<id>/reel.md` has the reason; the phone's original file moves to `ReelInbox/failed/` in iCloud |
 | Worker log | `~/Library/Application Support/ReelInbox/worker.log` |
 | Run it by hand | `cd ~/reel-inbox && python3 worker/reel_worker.py --url "<a public Reel link>" --note "test"` |
-| Claude doesn't see the tools | `claude mcp list` should show `reel-inbox ✔ Connected`; re-run `./install.sh` |
+| Claude doesn't see the tools | In `claude mcp list`, the `reel-inbox` line should end in `✔ Connected`; if not, run `./install.sh` again |
 
-**Uninstall:** `./uninstall.sh` stops the background job, removes the MCP server, and moves the model
+**Uninstall:** `cd ~/reel-inbox && ./uninstall.sh` stops the background job, removes the MCP server, and moves the model
 and helpers to the Trash. Your reels, the iCloud queue and the skill are kept unless you add `--all`.
 Add `--dry-run` to see what it would do first. It leaves the Homebrew tools (other apps may use them;
 `brew uninstall yt-dlp ffmpeg whisper.cpp` if you're sure) and the `reel-inbox` folder itself, which you
