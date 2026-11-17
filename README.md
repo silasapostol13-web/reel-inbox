@@ -107,7 +107,7 @@ and Python if you don't have Homebrew's already.
 ## Setup
 
 **1. Have the basics.** Homebrew, the Xcode Command Line Tools, and Claude Code (see Requirements).
-To check, paste this into Terminal. If it prints three version numbers, you're set:
+To check, paste this into Terminal. If all three answer with a version (and no "command not found"), you're set:
 
 ```bash
 brew --version && swiftc --version && claude --version
@@ -132,7 +132,7 @@ cd ~/reel-inbox && ./install.sh
 
 **4. Put the Shortcut on your iPhone.** Pick whichever is easier:
 
-- **From the Mac, by AirDrop:** in Finder, open the `reel-inbox/shortcut` folder, right-click
+- **From the Mac, by AirDrop:** in Finder press **Cmd+Shift+G**, paste `~/reel-inbox/shortcut`, press Return, then right-click
   **Send to Claude.shortcut** → **Share** → **AirDrop** → your iPhone. On the phone, tap
   **Add Shortcut**.
 - **On the phone, from GitHub:** open
@@ -238,7 +238,7 @@ Claude looks at up to 12 frame images.
   treat them as notes for yourself.
 
 **What it puts on your Mac:** the Homebrew tools (`yt-dlp`, `ffmpeg`, `whisper.cpp`, and Python if you
-didn't have it), the speech model in `~/Library/Application Support/ReelInbox/` (about 560 MB, plus the
+didn't have it), the speech model in `~/Library/Application Support/ReelInbox/` (about 575 MB, plus the
 worker log), a background job in `~/Library/LaunchAgents/`, two small helpers in the repo's `bin/`
 folder, the MCP server entry in `~/.claude.json` (Claude Code's own settings file), and a skill in `~/.claude/skills/reel-inbox/`.
 

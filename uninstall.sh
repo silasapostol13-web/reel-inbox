@@ -52,4 +52,5 @@ else
   note "Kept: ~/ReelInbox (your processed reels), the iCloud queue, and ~/.claude/skills/reel-inbox."
   note "Run ./uninstall.sh --all to move those to the Trash too."
 fi
-say "Done. Delete the Send to Claude shortcut on your iPhone if you no longer want it."
+if (( DRY )); then say "Dry run only: nothing was changed. Run ./uninstall.sh without --dry-run to do it."; else
+  say "Done. Delete the Send to Claude shortcut on your iPhone if you no longer want it."; fi
