@@ -115,10 +115,11 @@ If you move it later, run `./install.sh` again.
 git clone https://github.com/silasapostol13-web/reel-inbox.git ~/reel-inbox
 ```
 
-**3. Run the installer.** It installs `yt-dlp`, `ffmpeg` and `whisper-cpp` with Homebrew if they're
+**3. Run the installer.** It installs `yt-dlp`, `ffmpeg` and `whisper.cpp` with Homebrew if they're
 missing, downloads the speech model (about 575 MB, once), compiles two small Swift helpers, starts the
 background job, registers the MCP server for every Claude Code session, and adds a small Claude skill.
-It's safe to run again.
+It's safe to run again. If it warns that the Shortcuts iCloud folder doesn't exist yet, that's normal
+before your first share, as long as iCloud Drive is on.
 
 ```bash
 cd ~/reel-inbox && ./install.sh
@@ -145,7 +146,8 @@ Instagram version). In the sheet that opens, scroll to the bottom, tap **Edit Ac
 **Send to Claude** to Favorites. TikTok's **Share** → **More** opens the same sheet.
 
 **6. Try it.** Share a Reel, type or dictate a note, tap **Done**. If iOS asks whether Send to
-Claude may save a file, tap **Always Allow**. A minute or two later, on the Mac:
+Claude may save a file, tap **Always Allow**. Usually within a minute (it depends on iCloud sync), on
+the Mac:
 
 ```bash
 ls ~/ReelInbox
@@ -156,8 +158,12 @@ Then open Claude Code anywhere and say *"get the reel I just sent"*.
 **Test it without the phone:**
 
 ```bash
-python3 worker/reel_worker.py --url "https://www.instagram.com/reel/…" --note "test"
+cd ~/reel-inbox
+python3 worker/reel_worker.py --url "https://www.instagram.com/reel/Chunk8-jurw/" --note "test"
 ```
+
+That link is a 5-second public Reel from Instagram's own account; any public Reel or TikTok link works.
+It makes a new folder in `~/ReelInbox` within a few seconds.
 
 > **No share button handy?** Copy the Reel's link and run **Send to Claude** on its own (home screen,
 > Action Button, Back Tap). With nothing shared, it uses the link on your clipboard.
@@ -205,8 +211,9 @@ the first real share.
 ## Cost and privacy
 
 **It's free.** No account, no API key, no subscription. Everything it installs is free and open source,
-and transcription runs on your own Mac, so there's no per-minute charge. Claude Code itself needs your
-own Claude plan, like any other Claude Code session.
+and transcription runs on your own Mac, so there's no per-minute charge. Claude Code itself runs on your
+own Claude plan: asking about a reel uses it like any other message, a bit more than plain text because
+Claude looks at up to 12 frame images.
 
 **What stays on your Mac:**
 
@@ -214,8 +221,17 @@ own Claude plan, like any other Claude Code session.
   this project, because there isn't one.
 - The only network traffic is `yt-dlp` fetching the video from Instagram/TikTok, iCloud syncing the
   small note file, and the one-time model download from Hugging Face.
-- Your notes live in your own iCloud Drive (`Shortcuts/ReelInbox/`) and in `~/ReelInbox/`.
-- Claude Code sees a reel only when you (or a session) call the tool.
+- Your notes live in your own iCloud Drive (**iCloud Drive › Shortcuts › ReelInbox** in Finder; processed
+  ones move to its `done/` folder) and in `~/ReelInbox/`.
+- Claude Code sees a reel's contents only when you (or a session) call the tool. New sessions are told
+  how many unread reels are waiting, and that's all.
+- Reel folders are kept until you delete them. Each one holds the frames from someone else's video, so
+  treat them as notes for yourself.
+
+**What it puts on your Mac:** the Homebrew tools (`yt-dlp`, `ffmpeg`, `whisper.cpp`, and Python if you
+didn't have it), the speech model in `~/Library/Application Support/ReelInbox/` (about 560 MB, plus the
+worker log), a background job in `~/Library/LaunchAgents/`, two small helpers in the repo's `bin/`
+folder, the MCP server entry in Claude Code's settings, and a skill in `~/.claude/skills/reel-inbox/`.
 
 ## Limits and honest caveats
 
@@ -244,12 +260,14 @@ own Claude plan, like any other Claude Code session.
 | macOS asks whether `python3` may access files in iCloud Drive | Click **Allow**: that's the background job reading what the phone sent |
 | A reel failed | `~/ReelInbox/<id>/reel.md` has the reason; the phone's original file moves to `ReelInbox/failed/` in iCloud |
 | Worker log | `~/Library/Application Support/ReelInbox/worker.log` |
-| Run it by hand | `python3 worker/reel_worker.py --url "https://www.instagram.com/reel/…" --note "test"` |
+| Run it by hand | `cd ~/reel-inbox && python3 worker/reel_worker.py --url "<a public Reel link>" --note "test"` |
 | Claude doesn't see the tools | `claude mcp list` should show `reel-inbox ✔ Connected`; re-run `./install.sh` |
 
 **Uninstall:** `./uninstall.sh` stops the background job, removes the MCP server, and moves the model
-and helpers to the Trash. Your reels and the skill are kept unless you add `--all`. Add `--dry-run` to
-see what it would do first.
+and helpers to the Trash. Your reels, the iCloud queue and the skill are kept unless you add `--all`.
+Add `--dry-run` to see what it would do first. It leaves the Homebrew tools (other apps may use them;
+`brew uninstall yt-dlp ffmpeg whisper.cpp` if you're sure) and the `reel-inbox` folder itself, which you
+can drag to the Trash afterwards. Delete the shortcut on the iPhone by long-pressing it in Shortcuts.
 
 ## Repo layout
 

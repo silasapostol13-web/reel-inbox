@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Reel Inbox installer. Safe to run again any time (after an update, or if you move the folder).
 #
-#   1. installs the free tools it needs with Homebrew (python, yt-dlp, ffmpeg, whisper-cpp)
+#   1. installs the free tools it needs with Homebrew (python, yt-dlp, ffmpeg, whisper.cpp)
 #   2. downloads the local speech model once (~575 MB)
 #   3. compiles two small Swift helpers (Apple Vision OCR, iCloud file reader)
 #   4. starts a background job (launchd) that watches the iCloud inbox
@@ -40,14 +40,14 @@ xcrun --find swiftc >/dev/null 2>&1 || fail "Xcode Command Line Tools are needed
 # Python: any Homebrew python3 is fine (stdlib only). Don't install a new one on top of yours.
 missing=()
 [[ -x "$BREW_PREFIX/bin/python3" ]] || missing+=(python)
-for formula in yt-dlp ffmpeg whisper-cpp; do
+for formula in yt-dlp ffmpeg whisper.cpp; do
   brew list --formula "$formula" >/dev/null 2>&1 || missing+=("$formula")
 done
 if (( ${#missing} )); then
   note "Installing with Homebrew: ${missing[*]}"
   brew install "${missing[@]}"
 else
-  note "python3, yt-dlp, ffmpeg, whisper-cpp: already installed"
+  note "python3, yt-dlp, ffmpeg, whisper.cpp: already installed"
 fi
 PY="$BREW_PREFIX/bin/python3"
 [[ -x "$PY" ]] || fail "Couldn't find Homebrew's python3 at $PY"
@@ -73,7 +73,7 @@ note "bin/reelvision, bin/icloudread"
 say "Background job"
 if [[ ! -d "$HOME/Library/Mobile Documents/iCloud~is~workflow~my~workflows" ]]; then
   note "%F{yellow}Heads up:%f the Shortcuts iCloud folder doesn't exist yet. Make sure iCloud Drive is on"
-  note "(System Settings > Apple Account > iCloud > iCloud Drive). It will work once the first share arrives."
+  note "(System Settings > Apple Account > iCloud > iCloud Drive). This is normal before your first share."
 fi
 mkdir -p "$INBOX" "$HOME/Library/LaunchAgents"
 cat > "$PLIST" <<EOF
@@ -122,4 +122,5 @@ fi
 
 say "Done"
 note "Next: put shortcut/Send to Claude.shortcut on your iPhone (see README, step 4)."
-note "Test without the phone:  $PY worker/reel_worker.py --url <reel link> --note \"test\""
+note "Test without the phone (any public Reel link works):"
+note "  $PY \"$REPO/worker/reel_worker.py\" --url https://www.instagram.com/reel/Chunk8-jurw/ --note test"
