@@ -19,6 +19,19 @@
 
 ---
 
+**Quick start** (Mac with Apple silicon, [Homebrew](https://brew.sh) and
+[Claude Code](https://code.claude.com/docs/en/setup) already installed; free, about 10 minutes):
+
+```bash
+git clone https://github.com/silasapostol13-web/reel-inbox.git ~/reel-inbox
+cd ~/reel-inbox && ./install.sh
+```
+
+Then get the **Send to Claude** shortcut onto your iPhone ([step 4](#setup)), share a Reel to it, and
+ask Claude Code *"get the reel I just sent"*. Full steps are under [Setup](#setup).
+
+---
+
 A lot of good Claude Code tips, tools and build ideas show up as 40-second Reels. Watching one on
 your phone and then trying to explain it to Claude later loses most of it: the repo name that was on
 screen for a second, the exact command, what the person actually said.
@@ -83,7 +96,7 @@ Mac was asleep is worked through oldest first, one at a time, the next time it's
 
 - A Mac with Apple silicon. Tested on an M3 Pro with macOS 26. Intel Macs are untested.
 - [Homebrew](https://brew.sh), Xcode Command Line Tools (`xcode-select --install`), and
-  [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+  [Claude Code](https://code.claude.com/docs/en/setup)
 - An iPhone with the Shortcuts app, signed in to **the same Apple ID** as the Mac, with iCloud Drive on
 - About 600 MB of disk, almost all of it the speech model
 
@@ -111,16 +124,28 @@ It's safe to run again.
 cd ~/reel-inbox && ./install.sh
 ```
 
-**4. Put the Shortcut on your iPhone.** On the phone, open
-[this link](https://github.com/silasapostol13-web/reel-inbox/raw/main/shortcut/Send%20to%20Claude.shortcut)
-in Safari, then tap **Add Shortcut**. (Or AirDrop `shortcut/Send to Claude.shortcut` from the Mac.)
-The file is signed so anyone can import it. To build your own from source instead, run
-`python3 shortcut/build_shortcut.py`.
+**4. Put the Shortcut on your iPhone.** Pick whichever is easier:
 
-**5. Pin it in the share sheet.** In Instagram, tap the paper plane, then **Share to…**, scroll to the
-bottom, tap **Edit Actions…**, and add **Send to Claude** to Favorites.
+- **From the Mac, by AirDrop:** in Finder, open the `reel-inbox/shortcut` folder, right-click
+  **Send to Claude.shortcut** → **Share** → **AirDrop** → your iPhone. On the phone, tap
+  **Add Shortcut**.
+- **On the phone, from GitHub:** open
+  [this link](https://github.com/silasapostol13-web/reel-inbox/raw/master/shortcut/Send%20to%20Claude.shortcut)
+  in Safari and tap **Download**. Tap the blue download arrow in the address bar (or open the Files
+  app → **Downloads**), tap **Send to Claude**, then **Add Shortcut**.
 
-**6. Try it.** Share a Reel, say a note, tap **Done**. A minute or two later:
+The file is signed by Apple's "anyone can open" signing, so you don't need to change any Shortcuts
+setting. It does one thing: asks for your note and saves a small file with the link and the note to
+your own iCloud Drive. You can read every step before adding it, or build it yourself from
+[`shortcut/build_shortcut.py`](shortcut/build_shortcut.py) (`python3 shortcut/build_shortcut.py`).
+
+**5. Pin it in the share sheet.** Open any Reel in Instagram, tap the paper-plane **Share** button,
+then the iOS share icon at the end of the row (labeled **Share to…** or **More**, depending on your
+Instagram version). In the sheet that opens, scroll to the bottom, tap **Edit Actions…**, and add
+**Send to Claude** to Favorites. TikTok's **Share** → **More** opens the same sheet.
+
+**6. Try it.** Share a Reel, type or dictate a note, tap **Done**. If iOS asks whether Send to
+Claude may save a file, tap **Always Allow**. A minute or two later, on the Mac:
 
 ```bash
 ls ~/ReelInbox
@@ -177,7 +202,13 @@ as a placeholder with no data in it, and a background job that just opens it get
 helper (`vision/icloudread.swift`) asks iCloud to download it first. This was found the hard way, on
 the first real share.
 
-## Privacy
+## Cost and privacy
+
+**It's free.** No account, no API key, no subscription. Everything it installs is free and open source,
+and transcription runs on your own Mac, so there's no per-minute charge. Claude Code itself needs your
+own Claude plan, like any other Claude Code session.
+
+**What stays on your Mac:**
 
 - Video, audio, transcripts, frames and OCR all stay on your Mac. Nothing is sent to any server run by
   this project, because there isn't one.
@@ -207,7 +238,10 @@ the first real share.
 
 | Symptom | Where to look |
 |---|---|
-| Nothing shows up | `ls ~/Library/Mobile\ Documents/iCloud~is~workflow~my~workflows/Documents/ReelInbox/`: is the file there? |
+| `./install.sh` stops at "Homebrew is needed" or "Xcode Command Line Tools" | Install the one it names (the message gives the exact command), then run `./install.sh` again |
+| The shortcut won't import on the iPhone | Update iOS, then try the other way in step 4 (AirDrop if the download failed, or the reverse) |
+| Nothing shows up | `ls ~/Library/Mobile\ Documents/iCloud~is~workflow~my~workflows/Documents/ReelInbox/`: is the file there? If not, check that iCloud Drive is on, on both the iPhone and the Mac, with the same Apple ID |
+| macOS asks whether `python3` may access files in iCloud Drive | Click **Allow**: that's the background job reading what the phone sent |
 | A reel failed | `~/ReelInbox/<id>/reel.md` has the reason; the phone's original file moves to `ReelInbox/failed/` in iCloud |
 | Worker log | `~/Library/Application Support/ReelInbox/worker.log` |
 | Run it by hand | `python3 worker/reel_worker.py --url "https://www.instagram.com/reel/…" --note "test"` |
